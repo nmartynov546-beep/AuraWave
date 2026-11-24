@@ -10,13 +10,8 @@
 
   const css = document.createElement('style');
   css.textContent = `
-  #scl-btn,#scl-page-btn,#scl-panel,#scl-panel *,#scl-page,#scl-page *{box-sizing:border-box}
-  #scl-btn{position:fixed;right:16px;bottom:64px;z-index:2147483645;background:var(--sc-accent,#A855F7);color:#fff;border:0;border-radius:20px;padding:8px 14px;height:36px;font:600 13px/1.2 sans-serif;cursor:pointer;opacity:.95;box-shadow:0 3px 14px #0007;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;max-width:calc(100vw - 32px);transition:background-color .2s,transform .15s,opacity .15s}
-  #scl-btn:hover,#scl-page-btn:hover{opacity:1;transform:translateY(-1px)}
-  #scl-page-btn{position:fixed;right:116px;bottom:64px;z-index:2147483645;background:var(--sc-toolbar,#13131C);color:var(--sc-text,#F0F0F7);border:1px solid var(--sc-border,#28283A);border-radius:20px;padding:8px 14px;height:36px;font:600 13px/1.2 sans-serif;cursor:pointer;opacity:.95;box-shadow:0 3px 14px #0007;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;max-width:calc(100vw - 140px);transition:border-color .2s,background-color .2s,transform .15s,opacity .15s}
-  #scl-page-btn:hover{border-color:var(--sc-accent,#A855F7)}
-  #scl-page-btn svg{color:var(--sc-accent,#A855F7)}
-  #scl-panel{position:fixed;right:16px;bottom:108px;width:min(390px,calc(100vw - 32px));height:min(560px,calc(100vh - 124px));max-height:calc(100vh - 124px);z-index:2147483645;background:var(--sc-bg,rgba(14,14,20,.96));backdrop-filter:blur(16px);border:1px solid var(--sc-border,#28283A);border-radius:14px;color:var(--sc-text,#F0F0F7);font-family:sans-serif;display:none;flex-direction:column;box-shadow:0 10px 34px #000b;overflow:hidden}
+  #scl-panel,#scl-panel *,#scl-page,#scl-page *{box-sizing:border-box}
+  #scl-panel{position:fixed;left:16px;bottom:64px;width:min(390px,calc(100vw - 32px));height:min(560px,calc(100vh - 80px));max-height:calc(100vh - 80px);z-index:2147483645;background:var(--sc-bg,rgba(14,14,20,.96));backdrop-filter:blur(16px);border:1px solid var(--sc-border,#28283A);border-radius:14px;color:var(--sc-text,#F0F0F7);font-family:sans-serif;display:none;flex-direction:column;box-shadow:0 10px 34px #000b;overflow:hidden}
   #scl-panel.on{display:flex}
   #scl-head{display:flex;align-items:center;gap:6px;padding:10px 12px;font-size:12px;color:var(--sc-muted,#9898B0);border-bottom:1px solid var(--sc-border,#28283A);background:var(--sc-toolbar,#13131C)}
   #scl-brand{font-size:11px;font-weight:700;letter-spacing:.03em;color:var(--sc-accent,#A855F7);flex-shrink:0}
@@ -61,17 +56,6 @@
   #scl-page-body .scl-l{font-size:clamp(20px,2.5vw,32px);text-align:center;transform-origin:center;max-width:860px;margin:16px auto}
   #scl-page-body .scl-plain{max-width:740px;margin:0 auto;font-size:17px;line-height:1.75;text-align:center}
   #scl-page-body .scl-msg{padding-top:14vh;font-size:17px}`;
-
-  const btn = document.createElement('button');
-  btn.id = 'scl-btn';
-  btn.innerHTML = waveSvg + '<span>Lyrics</span>';
-  btn.title = 'AuraWave Mini Lyrics (Alt+L)';
-
-  const pageBtn = document.createElement('button');
-  pageBtn.id = 'scl-page-btn';
-  pageBtn.innerHTML = bookSvg + '<span>Страница текста</span>';
-  pageBtn.title = 'Открыть страницу текста песни';
-  pageBtn.setAttribute('aria-label', 'Открыть страницу текста песни');
 
   const cfgHtml = `
     <label>Primary Lyrics Provider
@@ -137,17 +121,10 @@
     </div>
     <div id="scl-page-body"></div>`;
 
-  function syncFabPosition() {
-    const w = Math.ceil(btn.getBoundingClientRect().width || 92);
-    pageBtn.style.right = (16 + w + 8) + 'px';
-  }
-
   function mount() {
     if (!document.body) return setTimeout(mount, 100);
     document.head.appendChild(css);
-    document.body.append(pageBtn, btn, panel, page);
-    syncFabPosition();
-    if (typeof ResizeObserver === 'function') new ResizeObserver(syncFabPosition).observe(btn);
+    document.body.append(panel, page);
   }
   mount();
 
@@ -163,9 +140,14 @@
     return m + ':' + (r < 10 ? '0' : '') + r;
   }
 
+  function notifyLyricsState() {
+    window.ipc && window.ipc.postMessage(JSON.stringify({ type: 'lyricsState', open: !!(open || pageOpen) }));
+  }
+
   function togglePanel(force) {
     open = typeof force === 'boolean' ? force : !open;
     panel.classList.toggle('on', open);
+    notifyLyricsState();
     if (open) {
       renderAll();
       update(curPos() + 0.15, true);
@@ -179,6 +161,7 @@
     open = false;
     panel.classList.remove('on');
     page.classList.add('on');
+    notifyLyricsState();
     updatePageHero();
     renderAll();
     update(curPos() + 0.15, true);
@@ -189,13 +172,12 @@
   function closePage() {
     pageOpen = false;
     page.classList.remove('on');
+    notifyLyricsState();
   }
 
   window.__scToggleLyrics = togglePanel;
   window.__scLyricsOpenPage = openPage;
 
-  btn.onclick = () => togglePanel();
-  pageBtn.onclick = () => (pageOpen ? closePage() : openPage());
   q('#scl-expand-btn').onclick = openPage;
   qp('#scl-page-back').onclick = closePage;
 

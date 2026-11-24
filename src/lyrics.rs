@@ -523,10 +523,11 @@ fn settings_response() -> Option<String> {
     .ok()
 }
 
-/// Opens a strictly allowlisted `https://genius.com/...` URL in the user's default browser.
-pub fn open_external_genius(raw_url: &str) -> bool {
+/// Opens an `https://` or `http://` URL in the user's default browser.
+pub fn open_external_url(raw_url: &str) -> bool {
     let trimmed = raw_url.trim();
-    if !trimmed.starts_with("https://genius.com/") {
+    let lower = trimmed.to_ascii_lowercase();
+    if !lower.starts_with("https://") && !lower.starts_with("http://") {
         return false;
     }
     let wide_op: Vec<u16> = "open\0".encode_utf16().collect();
@@ -549,7 +550,7 @@ pub fn handle_request(body: &str) -> Option<String> {
     if let Ok(req) = serde_json::from_str::<IpcRequest>(body) {
         match req {
             IpcRequest::OpenExternal { url } => {
-                let _ = open_external_genius(&url);
+                let _ = open_external_url(&url);
                 return None;
             }
             IpcRequest::GetSettings => return settings_response(),
@@ -697,10 +698,13 @@ mod tests {
     }
 
     #[test]
-    fn overlay_js_contains_dedicated_lyrics_page_and_button() {
-        assert!(OVERLAY_JS.contains("#scl-page-btn"));
+    fn overlay_js_contains_dedicated_lyrics_page_and_panel() {
         assert!(OVERLAY_JS.contains("#scl-page"));
         assert!(OVERLAY_JS.contains("__scLyricsOpenPage"));
+        assert!(OVERLAY_JS.contains("__scToggleLyrics"));
+        assert!(OVERLAY_JS.contains("#scl-panel{position:fixed;left:16px;"));
+        assert!(!OVERLAY_JS.contains("#scl-btn{"));
+        assert!(!OVERLAY_JS.contains("#scl-page-btn{"));
     }
 
     #[test]

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --tb-bg:#13131c;
+  --tb-border:#28283a;
+  --tb-text:#f0f0f7;
+  --tb-muted:#9898b0;
+  --tb-accent:#a855f7;
+  --tb-hover:#1f1f2e;
+  --tb-down:#2d2d42;
+}
+html,body{
+  width:100%;height:34px;overflow:hidden;
+  background:var(--tb-bg);
+  color:var(--tb-text);
+  font:12px/1 "Segoe UI",system-ui,sans-serif;
+  user-select:none;-webkit-user-select:none;
+}
+#tb{
+  width:100%;height:34px;
+  display:flex;align-items:center;
+  padding:3px 6px 4px;
+  border-bottom:1px solid var(--tb-border);
+  gap:2px;
+}
+.grp{display:flex;align-items:center;gap:2px;flex-shrink:0}
+.sep{width:1px;height:18px;background:var(--tb-border);margin:0 4px;flex-shrink:0}
+button.tbtn{
+  height:26px;min-width:28px;padding:0 7px;
+  border:0;border-radius:5px;
+  background:transparent;color:var(--tb-text);
+  font:600 12px/26px "Segoe UI",system-ui,sans-serif;
+  display:inline-flex;align-items:center;justify-content:center;
+  cursor:pointer;white-space:nowrap;
+  transition:background-color .12s,color .12s;
+}
+button.tbtn:hover{background:var(--tb-hover)}
+button.tbtn:active{background:var(--tb-down)}
+button.tbtn.dis{color:var(--tb-muted);opacity:.45;cursor:default}
+button.tbtn.dis:hover,button.tbtn.dis:active{background:transparent}
+button.tbtn.act{color:var(--tb-accent)}
+button.icon{width:28px;padding:0;font-size:13px}
+#tb-track{
+  flex:1;min-width:0;padding:0 10px;
+  color:var(--tb-muted);
+  font:400 12px/26px "Segoe UI",system-ui,sans-serif;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  cursor:pointer;
+}
+#tb-track:hover{color:var(--tb-text)}
+#tb-track.copied{color:var(--tb-accent);font-weight:600}
+@media (max-width:680px){
+  .tb-quick,#tb-sep-left{display:none}
+}
+@media (max-width:440px){
+  #tb-back,#tb-fwd,#tb-reload{width:24px;min-width:24px;padding:0}
+  button.tbtn{padding:0 5px}
+}
+</style>
+</head>
+<body>
+<div id="tb">
+  <div class="grp">
+    <button id="tb-back" class="tbtn icon dis" title="Back (Alt+Left)">&#x2190;</button>
+    <button id="tb-fwd" class="tbtn icon dis" title="Forward (Alt+Right)">&#x2192;</button>
+    <button id="tb-reload" class="tbtn icon" title="Reload (F5 / Ctrl+R)">&#x21BB;</button>
+    <div id="tb-sep-left" class="sep"></div>
+    <button id="tb-home" class="tbtn tb-quick" title="Discover">Home</button>
+    <button id="tb-likes" class="tbtn tb-quick" title="Likes">Likes</button>
+    <button id="tb-library" class="tbtn tb-quick" title="Library">Library</button>
+    <button id="tb-upload" class="tbtn tb-quick" title="Upload">Upload</button>
+  </div>
+  <div id="tb-track" title="Click to copy current track URL">SoundCloud</div>
+  <div class="grp">
+    <button id="tb-prev" class="tbtn icon" title="Previous">|&#x25C0;</button>
+    <button id="tb-play" class="tbtn icon" title="Play / Pause">&#x25B6;</button>
+    <button id="tb-next" class="tbtn icon" title="Next">&#x25B6;|</button>
+    <div class="sep"></div>
+    <button id="tb-lyrics" class="tbtn" title="Lyrics (Ctrl+Y) — Right-click: Lyrics Page">Lyrics</button>
+    <button id="tb-theme" class="tbtn" title="Theme">Theme</button>
+    <button id="tb-mini" class="tbtn" title="Mini-Player (Ctrl+M)">Mini</button>
+    <button id="tb-pin" class="tbtn" title="Always on Top">Pin</button>
+    <button id="tb-settings" class="tbtn icon" title="Settings">&#x2699;</button>
+  </div>
+</div>
+<script>
+(function(){
+  const post = o => window.ipc && window.ipc.postMessage(JSON.stringify(o));
+  const $ = id => document.getElementById(id);
+  let copiedTimer = 0, lastLabel = 'SoundCloud';
+
+  $('tb-back').onclick = () => { if (!$('tb-back').classList.contains('dis')) post({ action: 'back' }); };
+  $('tb-fwd').onclick = () => { if (!$('tb-fwd').classList.contains('dis')) post({ action: 'forward' }); };
+  $('tb-reload').onclick = () => post({ action: 'reload' });
+  $('tb-home').onclick = () => post({ action: 'navigate', url: 'HOME' });
+  $('tb-likes').onclick = () => post({ action: 'navigate', url: 'https://soundcloud.com/you/likes' });
+  $('tb-library').onclick = () => post({ action: 'navigate', url: 'https://soundcloud.com/you/library' });
+  $('tb-upload').onclick = () => post({ action: 'navigate', url: 'https://soundcloud.com/upload' });
+
+  $('tb-track').onclick = () => {
+    post({ action: 'copyTrackUrl' });
+    const el = $('tb-track');
+    el.textContent = 'Copied!';
+    el.classList.add('copied');
+    clearTimeout(copiedTimer);
+    copiedTimer = setTimeout(() => {
+      el.classList.remove('copied');
+      el.textContent = lastLabel;
+    }, 1500);
+  };
+
+  $('tb-prev').onclick = () => post({ action: 'prev' });
+  $('tb-play').onclick = () => post({ action: 'playPause' });
+  $('tb-next').onclick = () => post({ action: 'next' });
+
+  $('tb-lyrics').onclick = () => post({ action: 'toggleLyrics' });
+  $('tb-lyrics').addEventListener('contextmenu', e => {
+    e.preventDefault();
+    post({ action: 'openLyricsPage' });
+  });
+
+  $('tb-theme').onclick = () => {
+    const r = $('tb-theme').getBoundingClientRect();
+    post({ action: 'showThemeMenu', x: r.left, y: r.bottom });
+  };
+  $('tb-mini').onclick = () => post({ action: 'toggleMini' });
+  $('tb-pin').onclick = () => post({ action: 'togglePin' });
+  $('tb-settings').onclick = () => {
+    const r = $('tb-settings').getBoundingClientRect();
+    post({ action: 'showSettingsMenu', x: r.right, y: r.bottom });
+  };
+
+  window.addEventListener('keydown', e => {
+    const mod = (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+    const k = (e.key || '').toLowerCase();
+    if (mod && k === 'h') { e.preventDefault(); post({ action: 'shortcut', name: 'toggleToolbar' }); }
+    else if (mod && k === 'm') { e.preventDefault(); post({ action: 'shortcut', name: 'toggleMini' }); }
+    else if (mod && k === 'y') { e.preventDefault(); post({ action: 'shortcut', name: 'toggleLyrics' }); }
+    else if (mod && (k === 'k' || k === 'l')) { e.preventDefault(); post({ action: 'shortcut', name: 'focusSearch' }); }
+    else if (mod && (e.key === '=' || e.key === '+')) { e.preventDefault(); post({ action: 'shortcut', name: 'zoomIn' }); }
+    else if (mod && e.key === '-') { e.preventDefault(); post({ action: 'shortcut', name: 'zoomOut' }); }
+    else if (mod && e.key === '0') { e.preventDefault(); post({ action: 'shortcut', name: 'zoomReset' }); }
+    else if (mod && k === 'r') { e.preventDefault(); post({ action: 'reload' }); }
+    else if (e.key === 'F5') { e.preventDefault(); post({ action: 'reload' }); }
+    else if (e.key === 'F11') { e.preventDefault(); post({ action: 'shortcut', name: 'toggleFullscreen' }); }
+    else if (e.altKey && e.code === 'KeyL') { e.preventDefault(); post({ action: 'shortcut', name: 'toggleLyrics' }); }
+  }, true);
+
+  window.__tbUpdate = function (st) {
+    if (!st) return;
+    if (st.theme) {
+      const r = document.documentElement.style;
+      r.setProperty('--tb-bg', st.theme.toolbar_bg);
+      r.setProperty('--tb-border', st.theme.border_color);
+      r.setProperty('--tb-text', st.theme.text_primary);
+      r.setProperty('--tb-muted', st.theme.text_muted);
+      r.setProperty('--tb-accent', st.theme.accent_color);
+      r.setProperty('--tb-hover', st.theme.button_hover);
+      r.setProperty('--tb-down', st.theme.button_down);
+    }
+    $('tb-back').classList.toggle('dis', !st.can_go_back);
+    $('tb-fwd').classList.toggle('dis', !st.can_go_forward);
+
+    const playBtn = $('tb-play');
+    playBtn.textContent = st.playing ? '\u275A\u275A' : '\u25B6';
+    playBtn.classList.toggle('act', !!st.playing);
+
+    $('tb-lyrics').classList.toggle('act', !!st.lyrics_open);
+    $('tb-mini').classList.toggle('act', !!st.mini_mode);
+    $('tb-pin').classList.toggle('act', !!st.always_on_top);
+
+    lastLabel = st.track_label || 'SoundCloud';
+    const tr = $('tb-track');
+    if (!tr.classList.contains('copied')) tr.textContent = lastLabel;
+  };
+})();
+</script>
+</body>
+</html>

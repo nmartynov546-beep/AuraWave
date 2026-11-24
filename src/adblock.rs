@@ -209,7 +209,7 @@ pub fn install_adblock_filter(core: &ICoreWebView2, enabled: Arc<AtomicBool>) {
     }
 }
 
-unsafe fn pwstr_to_string(ptr: PWSTR) -> String {
+pub(crate) unsafe fn pwstr_to_string(ptr: PWSTR) -> String {
     if ptr.is_null() {
         return String::new();
     }
