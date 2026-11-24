@@ -702,4 +702,20 @@ mod tests {
         assert!(OVERLAY_JS.contains("#scl-page"));
         assert!(OVERLAY_JS.contains("__scLyricsOpenPage"));
     }
+
+    #[test]
+    fn parse_lrc_preserves_inline_word_tags_and_overlay_supports_karaoke() {
+        let lrc = "[00:12.00]<00:12.00>Hello <00:12.45>world";
+        let parsed = parse_lrc(lrc);
+        assert_eq!(parsed.len(), 1);
+        assert!((parsed[0].0 - 12.0).abs() < 1e-6);
+        assert_eq!(parsed[0].1, "<00:12.00>Hello <00:12.45>world");
+
+        assert!(OVERLAY_JS.contains(".scl-w"));
+        assert!(OVERLAY_JS.contains(".scl-w.now"));
+        assert!(OVERLAY_JS.contains(".scl-w.done"));
+        assert!(OVERLAY_JS.contains("tokenizeLine"));
+        assert!(OVERLAY_JS.contains("prepareLines"));
+        assert!(OVERLAY_JS.contains("requestAnimationFrame"));
+    }
 }
